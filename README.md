@@ -6,9 +6,15 @@
 ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
 
-A product-recommendation engine for an online store: item-based collaborative filtering, content-based filtering and a hybrid of the two, evaluated offline against a popularity baseline and served through a REST API.
+A product-recommendation engine for an online store: item-based collaborative filtering, content-based filtering and a hybrid of the two, evaluated offline against a popularity baseline, served through a REST API and browsable in a React storefront.
 
 The catalogue here is the public [MovieLens](https://grouplens.org/datasets/movielens/latest/) "latest-small" dataset (610 users, 9,742 items, 100,836 ratings). Movies stand in for products; the techniques and the evaluation are the same ones an e-commerce store would use on purchase or rating data.
+
+![Storefront on desktop: recommendations for user 1 with a "similar items" panel](docs/screenshot-desktop.jpg)
+
+<img src="docs/screenshot-mobile.jpg" alt="Storefront on a phone" width="260" />
+
+*Real screenshots of the running app on the MovieLens data. The dataset has no product images, so cards show a placeholder tinted by genre.*
 
 ## Results
 
@@ -60,14 +66,28 @@ python -m pytest                  # tests
 uvicorn app.main:app --reload     # API on http://localhost:8000 (docs at /docs)
 ```
 
+### Web interface
+
+With the API running (above), in another terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev                       # http://localhost:5173 (proxies /api to port 8000)
+npm test                          # component tests with a mocked API
+```
+
 ### Docker
 
 ```bash
-python scripts/download_data.py   # the image does not contain the dataset
+python scripts/download_data.py   # the images do not contain the dataset
 docker compose up --build
 ```
 
-The API is then at http://localhost:8000 with interactive docs at http://localhost:8000/docs. `./data` is mounted read-only into the container.
+- Web interface: http://localhost:8080 (nginx serves the React build and forwards `/api/*` to the API)
+- API with interactive docs: http://localhost:8000/docs
+
+`./data` is mounted read-only into the API container.
 
 ## API
 
@@ -98,6 +118,18 @@ curl "http://localhost:8000/recommend/1?k=2"
 
 `k` is limited to 1 to 50; invalid values return `422`, unknown items and users return `404`.
 
+## Web interface
+
+A small React (Vite) app in [`frontend/`](frontend/) that uses only the API above:
+
+- Pick a user (or a random one) and a model, and see the top 12 recommendations
+- "Because the user rated these highly": their own top-rated items, to explain the picks
+- Click any item for "customers also viewed" (similar items from the selected model)
+- New users are detected from the API response and shown popular items with an explanation (cold start)
+- Loading skeletons, API-offline and error messages, keyboard-accessible controls, light and dark themes, responsive layout
+
+12 component tests run against a mocked API.
+
 ## Project structure
 
 ```
@@ -110,8 +142,13 @@ curl "http://localhost:8000/recommend/1?k=2"
 ├── app/                    # FastAPI service
 │   ├── service.py          # business logic (fallbacks, formatting)
 │   └── main.py             # routes and startup
+├── frontend/               # React (Vite) web interface
+│   ├── src/                # App, components, API client, tests
+│   ├── Dockerfile          # build, then serve with nginx
+│   └── nginx.conf          # SPA fallback and /api proxy
 ├── scripts/                # download_data.py, evaluate.py
-├── tests/                  # 30 tests on a small hand-made dataset
+├── tests/                  # 30 backend tests on a small hand-made dataset
+├── docs/                   # screenshots
 ├── results/                # metrics from the last evaluation run
 ├── Dockerfile, docker-compose.yml
 └── .github/workflows/ci.yml
@@ -123,7 +160,7 @@ curl "http://localhost:8000/recommend/1?k=2"
 - Ratings stand in for purchases. A real store would use implicit signals (views, add-to-cart, purchases) and would need to handle new products with no interactions at all.
 - The models are re-fitted at startup (about 3 seconds here); there is no incremental update and no model persistence.
 - Only item-based CF is implemented. Matrix factorisation (ALS or SVD-style) and a learned ranking model are natural next experiments.
-- A React storefront that consumes this API is planned but **not built yet**.
+- The web interface is a recommendation browser, not a full shop: there is no cart, checkout, login or product images, and the user is chosen by ID.
 
 ## Data and licence
 
