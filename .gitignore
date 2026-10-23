@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+
+# MovieLens is downloaded by scripts/download_data.py and must not be redistributed
+data/*
+!data/.gitkeep
